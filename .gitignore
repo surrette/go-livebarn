@@ -1,2 +1,7 @@
 
 examples/config.json
+
+# exclude everything in Videos folder
+Videos/*
+# exception to the rule
+!Videos/.gitkeep 
