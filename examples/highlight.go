@@ -111,8 +111,8 @@ func main() {
 			fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 		}
 		//fmt.Printf("\CMD:\n%v\n", out)
-		var ResultString = strings.Replace(out.String(), "", "", -1)
-		fmt.Println("Result YouTube API: " + ResultString)
+		var YouTubeId = out.String()
+		fmt.Println("Result YouTube API: " + YouTubeId)
 		
 
 		r, _ := regexp.Compile(": \\S*")
@@ -130,7 +130,6 @@ func main() {
 			fmt.Println(results)
 			panic(err.Error()) // proper error handling instead of panic in your app
 		}
-		
 	}
 	
 	db.Close()
