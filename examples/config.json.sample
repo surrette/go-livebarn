@@ -1,0 +1,7 @@
+{
+    "Server": "MYSQL_SERVER",
+	"Database": "DBNAME",
+	"User": "USER",
+    "Password": "PASS",
+	"LiveBarnUUID": "lb_uuid_key"
+}
