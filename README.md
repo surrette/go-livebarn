@@ -47,16 +47,17 @@ This little snippet will concatenate multiple video files into one:
 $ ffmpeg -i "concat:input1.mp4|input2.mp4|input3.mp4" -c copy output.mp4
 ```
 
-## surrette fork additions August 2019
+## Surrette fork additions August 2019
 - Updated media.go to use v2 of the LiveBarn API. v1 was failing for get videos.
 - Added ffmpeg merge directly into fetch.go using exec.Command
 - Added YouTube upload into fetch.go using https://github.com/youtube/api-samples/tree/master/go. NOTE: you must add a client_secret.json file to the directory for oauth2.go to work. Credentials can be created at https://developers.google.com/console.
 - highlight.go creates a highlight video using ffmpeg to slice the merged video and then upload to YouTube
 
-// (token.access_token, lb_uuid_key) Sign into Livebarn and get variables. In Chrome hit F12 (Developer) -> Application tab ->
+LiveBarn account needed to configure credentials: token.access_token and lb_uuid_key. Sign into Livebarn and get variables. In Chrome hit F12 (Developer) -> Application tab ->
 
 You'll notice that game variables are pulled from a MySQL database. You may want to rewrite the code to input these variables a different way, but here are MySQL tables if you want to recreate.
 
+```
 CREATE TABLE `games` (
   `GameId` varchar(45) NOT NULL,
   `HomeTeam` varchar(200) DEFAULT NULL,
@@ -89,3 +90,4 @@ CREATE TABLE `highlights` (
   PRIMARY KEY (`HighlightId`),
   UNIQUE KEY `unique_highlight` (`GameId`,`Team`,`Type`,`SubType`,`Period`,`GameTime`,`GoalNum`)
 ) ENGINE=InnoDB AUTO_INCREMENT=623 DEFAULT CHARSET=utf8;
+```
