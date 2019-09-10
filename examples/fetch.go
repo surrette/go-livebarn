@@ -94,16 +94,18 @@ func main() {
 			client := livebarn.New(token, uuid) // (token.access_token, lb_uuid_key) Sign into Livebarn and get variables. In Chrome hit F12 (Developer) -> Application tab -> token.access_token, lb_uuid_key
 			client.DebugMode = true
 			
-			var videoNum=3 //Number of videos to download from LiveBarn after starttime. Each video is 30 minutes so 3 is usually enough
-			
+			var videoDuration=0 
+			var targetVideoDuration=80*60*1000 //80 minutes in milliseconds
 			//***SEARCH LIVEBARN***
 			resp, _ := client.GetMedia(surfaceid, beginDateTimeString)	
 			
 			//***LOOP OVER FILES***
 			var mergeFiles = ""
-			for i := 0; i<videoNum; i++ {
+			var i=0
+			for videoDuration < targetVideoDuration {
 				part := resp[i]
 				var dateTimeString = part.BeginDate[0:16]
+				videoDuration += part.Duration
 				dateTimeString =  strings.Replace(dateTimeString, ":", "_", -1)
 				//Videos file for .mp4
 				filename := fmt.Sprintf("%s-%s-Part%d.mp4", dateTimeString, surface, i+1)
@@ -116,7 +118,7 @@ func main() {
 				if err != nil {
 					panic(err)
 				}
-				//*/
+				i++
 			}
 			
 			//***WRITE ffmpeg-merge.txt - LIST OF MERGE FILE***
