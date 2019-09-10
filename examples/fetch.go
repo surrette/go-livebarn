@@ -63,117 +63,128 @@ func main() {
 	m["San Jose South"] = "547"
 	m["San Jose East"] = "548"
 	m["San Jose Center"] = "549"
+	for { //infinite loop continuously looking for videos to process (sleep statement at bottom)
+		// SELECT games that have not been processed yet (NULL YouTubeLink)
+		results, err := db.Query("SELECT GameId, Name, StartTime, Surface, Auth, IFNULL(FileName, '') as FileName FROM games WHERE YouTubeLink = '' OR YouTubeLink is NULL;")
+		if err != nil {
+			panic(err.Error()) // proper error handling instead of panic in your app
+		}
 
-    // SELECT games that have not been processed yet (NULL YouTubeLink)
-    results, err := db.Query("SELECT GameId, Name, StartTime, Surface, Auth, IFNULL(FileName, '') as FileName FROM games WHERE YouTubeLink = '' OR YouTubeLink is NULL;")
-    if err != nil {
-        panic(err.Error()) // proper error handling instead of panic in your app
-    }
-
-	var mergedFileName string
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-    for results.Next() {
-        var game Game
-        // for each row, scan the result into our tag composite object
-        err = results.Scan(&game.GameId, &game.Name, &game.StartTime, &game.Surface, &game.Auth, &game.FileName)
-        if err != nil {
-            panic(err.Error()) // proper error handling instead of panic in your app
-        }
-        log.Printf(game.Name)
-
-		var surfaceid = m[game.Surface] //| 546=North | 547=South | 548=East | 549=Center
-		var name = game.Name
-		var beginDateTimeString = game.StartTime.Format("2006-01-02T15:04")
-		var beginDateString = game.StartTime.Format("2006-01-02")
-		var surface = strings.Replace(game.Surface, " ", "_", -1)
-
-		if(game.FileName == ""){ //don't download video again if file already exists. Useful for YouTube API failures (daily quota hit for example)
-			var uuid = config.LiveBarnUUID //same per account
-			var token = game.Auth //changes each login		
-			client := livebarn.New(token, uuid) // (token.access_token, lb_uuid_key) Sign into Livebarn and get variables. In Chrome hit F12 (Developer) -> Application tab -> token.access_token, lb_uuid_key
-			client.DebugMode = true
-			
-			var videoDuration=0 
-			var targetVideoDuration=80*60*1000 //80 minutes in milliseconds
-			//***SEARCH LIVEBARN***
-			resp, _ := client.GetMedia(surfaceid, beginDateTimeString)	
-			
-			//***LOOP OVER FILES***
-			var mergeFiles = ""
-			var i=0
-			for videoDuration < targetVideoDuration {
-				part := resp[i]
-				var dateTimeString = part.BeginDate[0:16]
-				videoDuration += part.Duration
-				dateTimeString =  strings.Replace(dateTimeString, ":", "_", -1)
-				//Videos file for .mp4
-				filename := fmt.Sprintf("%s-%s-Part%d.mp4", dateTimeString, surface, i+1)
-				mergeFiles+="file " + filename + "\n"
-				log.Printf("\nDownloading %s ...\n", filename)
-				
-				//***Download video file from LiveBarn**
-				url, _ := client.GetMediaDownload(part.URL)
-				err := livebarn.DownloadFile(filename, url.Result.URL)
-				if err != nil {
-					panic(err)
-				}
-				i++
-			}
-			
-			//***WRITE ffmpeg-merge.txt - LIST OF MERGE FILE***
-			log.Printf("Starting merge file write...\n")
-			err := ioutil.WriteFile("./Videos/ffmpeg-merge.txt", []byte(mergeFiles), 0644)
+		var mergedFileName string
+		var out bytes.Buffer
+		var stderr bytes.Buffer
+		for results.Next() {
+			var game Game
+			// for each row, scan the result into our tag composite object
+			err = results.Scan(&game.GameId, &game.Name, &game.StartTime, &game.Surface, &game.Auth, &game.FileName)
 			if err != nil {
-				log.Println(err)
+				panic(err.Error()) // proper error handling instead of panic in your app
+			}
+			log.Printf(game.Name)
+
+			var surfaceid = m[game.Surface] //| 546=North | 547=South | 548=East | 549=Center
+			var name = game.Name
+			var beginDateTimeString = game.StartTime.Format("2006-01-02T15:04")
+			var beginDateString = game.StartTime.Format("2006-01-02")
+			var surface = strings.Replace(game.Surface, " ", "_", -1)
+
+			if(game.FileName == ""){ //don't download video again if file already exists. Useful for YouTube API failures (daily quota hit for example)
+				var uuid = config.LiveBarnUUID //same per account
+				var token = game.Auth //changes each login		
+				client := livebarn.New(token, uuid) // (token.access_token, lb_uuid_key) Sign into Livebarn and get variables. In Chrome hit F12 (Developer) -> Application tab -> token.access_token, lb_uuid_key
+				client.DebugMode = true
+				
+				var videoDuration=0 
+				var targetVideoDuration=80*60*1000 //80 minutes in milliseconds
+				//***SEARCH LIVEBARN***
+				resp, _ := client.GetMedia(surfaceid, beginDateTimeString)	
+				
+				//***LOOP OVER FILES***
+				var mergeFiles = ""
+				var i=0
+				for videoDuration < targetVideoDuration {
+					part := resp[i]
+					var dateTimeString = part.BeginDate[0:16]
+					videoDuration += part.Duration
+					dateTimeString =  strings.Replace(dateTimeString, ":", "_", -1)
+					//Videos file for .mp4
+					filename := fmt.Sprintf("%s-%s-Part%d.mp4", dateTimeString, surface, i+1)
+					mergeFiles+="file " + filename + "\n"
+					log.Printf("\nDownloading %s ...\n", filename)
+					
+					//***Download video file from LiveBarn**
+					url, _ := client.GetMediaDownload(part.URL)
+					err := livebarn.DownloadFile(filename, url.Result.URL)
+					if err != nil {
+						panic(err)
+					}
+					i++
+				}
+				
+				//***WRITE ffmpeg-merge.txt - LIST OF MERGE FILE***
+				log.Printf("Starting merge file write...\n")
+				err := ioutil.WriteFile("./Videos/ffmpeg-merge.txt", []byte(mergeFiles), 0644)
+				if err != nil {
+					log.Println(err)
+				}
+				
+				//***EXECUTE ffmpeg MERGE***
+				mergedFileName = fmt.Sprintf("%s-%s-Merged.mp4", strings.Replace(beginDateTimeString, ":", "_", -1), surface)
+				log.Printf("Starting ffmpeg merge...\n")
+				cmd := exec.Command("ffmpeg",
+					"-f", "concat",
+					"-i", "ffmpeg-merge.txt",
+					"-c", "copy",
+					mergedFileName,
+					"-y",
+					)
+				cmd.Dir = "./Videos/"
+				cmd.Stdout = &out
+				cmd.Stderr = &stderr
+				err = cmd.Run()
+				if err != nil {
+					fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
+				}
+				fmt.Println("Result: " + out.String())
+			} else{ //if merged file already created
+				mergedFileName = game.FileName
 			}
 			
-			//***EXECUTE ffmpeg MERGE***
-			mergedFileName = fmt.Sprintf("%s-%s-Merged.mp4", strings.Replace(beginDateTimeString, ":", "_", -1), surface)
-			log.Printf("Starting ffmpeg merge...\n")
-			cmd := exec.Command("ffmpeg",
-				"-f", "concat",
-				"-i", "ffmpeg-merge.txt",
-				"-c", "copy",
-				mergedFileName,
-				"-y",
-				)
-			cmd.Dir = "./Videos/"
+			//***YouTube Upload***
+			log.Printf("Starting YouTube upload...\n")
+			var title = name + " (" + beginDateString + ")"
+			cmd := exec.Command("go", "run", "upload_video.go", "errors.go", "oauth2.go",
+				"--filename", "./Videos/" + mergedFileName,
+				"--title", title,
+				"--keywords", "Beerbears Hockey")
 			cmd.Stdout = &out
 			cmd.Stderr = &stderr
 			err = cmd.Run()
 			if err != nil {
 				fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 			}
-			fmt.Println("Result: " + out.String())
-		} else{ //if merged file already created
-			mergedFileName = game.FileName
+			var YouTubeId = out.String()
+			
+			//***UPDATE DATABASE with server merged filename and YouTubeLink
+			var sqlUpdate = "UPDATE games SET YouTubeLink='" + YouTubeId + "', FileName='" + mergedFileName + "' WHERE GameId = " + strconv.Itoa(game.GameId)
+			fmt.Println("sqlUpdate: " + sqlUpdate)
+			results, err := db.Query(sqlUpdate)
+			if err != nil {
+				fmt.Println(results)
+				panic(err.Error()) // proper error handling instead of panic in your app
+			}
+			
 		}
 		
-		//***YouTube Upload***
-		log.Printf("Starting YouTube upload...\n")
-		var title = name + " (" + beginDateString + ")"
-		cmd := exec.Command("go", "run", "upload_video.go", "errors.go", "oauth2.go",
-			"--filename", "./Videos/" + mergedFileName,
-			"--title", title,
-			"--keywords", "Beerbears Hockey")
-		cmd.Stdout = &out
-		cmd.Stderr = &stderr
+		//Check for highlights that need to be processed
+		//fmt.Println("go run highlight.go")
+		cmd := exec.Command("go", "run", "highlight.go")
 		err = cmd.Run()
 		if err != nil {
 			fmt.Println(fmt.Sprint(err) + ": " + stderr.String())
 		}
-		var YouTubeId = out.String()
-		
-		//***UPDATE DATABASE with server merged filename and YouTubeLink
-		var sqlUpdate = "UPDATE games SET YouTubeLink='" + YouTubeId + "', FileName='" + mergedFileName + "' WHERE GameId = " + strconv.Itoa(game.GameId)
-		fmt.Println("sqlUpdate: " + sqlUpdate)
-		results, err := db.Query(sqlUpdate)
-		if err != nil {
-			fmt.Println(results)
-			panic(err.Error()) // proper error handling instead of panic in your app
-		}
-		
-	}
+		fmt.Print(".")
+		time.Sleep(5 * time.Second)
+	} //end infinite loop
 	db.Close()
 }

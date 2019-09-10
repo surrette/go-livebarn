@@ -5,7 +5,6 @@ import (
 	"log"
 	"strings"
 	"strconv"
-	"regexp"
 	"encoding/json"
 	"os"
 	"os/exec"
@@ -55,9 +54,8 @@ func main() {
     }
     defer db.Close()
 
-	fmt.Println("Start SELECT highlights")	
     // SELECT highlights that have not been processed yet (NULL YouTubeLink)
-    results, err := db.Query("SELECT HighlightId, h.GameId, h.Name, h.StartTime, h.EndTime, h.Type, g.Name as GameName, g.FileName as GameFileName, h.YouTubeLink FROM highlights h join games g on g.GameId=h.GameId WHERE h.YouTubeLink = 'PENDING' OR h.YouTubeLink='';")
+    results, err := db.Query("SELECT HighlightId, h.GameId, h.Name, h.StartTime, h.EndTime, h.Type, g.Name as GameName, g.FileName as GameFileName, h.YouTubeLink FROM highlights h join games g on g.GameId=h.GameId WHERE h.YouTubeLink = 'PENDING'-- OR h.YouTubeLink='';")
     if err != nil {
         panic(err.Error()) // proper error handling instead of panic in your app
     }
@@ -95,7 +93,6 @@ func main() {
 			fmt.Println("Result: " + out.String())
 		}
 		
-		var YouTubeId = ""
 		//***YouTube Upload***
 		log.Printf("Starting YouTube upload...\n")
 		var title = highlight.Name + " - " + highlight.GameName
@@ -113,13 +110,6 @@ func main() {
 		//fmt.Printf("\CMD:\n%v\n", out)
 		var YouTubeId = out.String()
 		fmt.Println("Result YouTube API: " + YouTubeId)
-		
-
-		r, _ := regexp.Compile(": \\S*")
-		// This finds the match for the regexp.
-		YouTubeId = strings.Replace(r.FindString(ResultString), ": ", "", -1)
-		//var YouTubeId = r.FindString(ResultString)
-		fmt.Println(YouTubeId)
 		//*/
 		
 		var sqlUpdate = "UPDATE highlights SET YouTubeLink='" + YouTubeId + "', FileName='" + cutFileName + "' WHERE HighlightId = " + strconv.Itoa(highlight.HighlightId)
@@ -131,6 +121,5 @@ func main() {
 			panic(err.Error()) // proper error handling instead of panic in your app
 		}
 	}
-	
 	db.Close()
 }
