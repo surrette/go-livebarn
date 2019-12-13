@@ -58,11 +58,13 @@ func main() {
 	//{"id":547,"name":"South Rink","uuid":"5c8a3cdcd5a943e7b30212ff388a7043","orderIndex":1,"surfaceStatusId":3,"venueId":369,"sportId":1,"closedFrom":null,"closedUntil":null,"comingSoon":false,"online":true}]
 	//{"id":548,"name":"East Rink","uuid":"8c3b213305454370ae427d166f4f1d53","orderIndex":3,"surfaceStatusId":3,"venueId":369,"sportId":1,"closedFrom":null,"closedUntil":null,"comingSoon":false,"online":true}
 	//{"id":549,"name":"Center Rink","uuid":"50612242ea7f429591dbb81280f8e19c","orderIndex":2,"surfaceStatusId":8,"venueId":369,"sportId":1,"closedFrom":null,"closedUntil":null,"comingSoon":false,"online":false}
+	//Fremont id=545
 	var m  = make(map[string]string)
 	m["San Jose North"] = "546"
 	m["San Jose South"] = "547"
 	m["San Jose East"] = "548"
 	m["San Jose Center"] = "549"
+	m["Fremont"] = "545"
 	for { //infinite loop continuously looking for videos to process (sleep statement at bottom)
 		// SELECT games that have not been processed yet (NULL YouTubeLink)
 		results, err := db.Query("SELECT GameId, Name, StartTime, Surface, Auth, IFNULL(FileName, '') as FileName FROM games WHERE YouTubeLink = '' OR YouTubeLink is NULL;")
@@ -98,7 +100,7 @@ func main() {
 				var targetVideoDuration=80*60*1000 //80 minutes in milliseconds
 				//***SEARCH LIVEBARN***
 				resp, _ := client.GetMedia(surfaceid, beginDateTimeString)	
-				
+				//log.Printf("SURFACE: %s ...\n", surfaceid)
 				//***LOOP OVER FILES***
 				var mergeFiles = ""
 				var i=0
